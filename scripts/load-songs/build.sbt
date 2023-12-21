@@ -13,5 +13,7 @@ lazy val root = project
     libraryDependencies += "org.elasticsearch.client" % "elasticsearch-rest-high-level-client" % "7.17.6",
     libraryDependencies += "org.xerial" % "sqlite-jdbc" % "3.34.0",
     libraryDependencies += "org.apache.logging.log4j" % "log4j-core" % "2.14.1",
-    libraryDependencies += "org.json4s" %% "json4s-jackson" % "4.0.7"
+    libraryDependencies += "org.json4s" %% "json4s-jackson" % "4.0.7",
+    libraryDependencies += "org.deeplearning4j" % "deeplearning4j-nlp" % "0.9.1",
+
   )
