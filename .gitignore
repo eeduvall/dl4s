@@ -1,0 +1,4 @@
+.DS_Store
+elastic_credentials.txt
+http_ca.crt
+/data/*
