@@ -6,7 +6,7 @@ import org.deeplearning4j.text.tokenization.tokenizerfactory.DefaultTokenizerFac
 object Word2VecGenerator {
     def main(args: Array[String]): Unit = {
         // Define the path to your text corpus
-        val corpusPath = "/path/to/your/text/corpus.txt"
+        val corpusPath = "/Users/duvalle/Documents/GitHub/dl4s/data/Songs/billboard/data/combined_lyrics.txt"
         // val path = Paths.get("/path/to/index")
         // val directory = FSDirectory.open(path)
         // val reader = DirectoryReader.open(directory)
@@ -37,7 +37,7 @@ object Word2VecGenerator {
         word2Vec.fit()
 
         // Save the Word2Vec model
-        val modelPath = "/path/to/save/word2vec/model.bin"
+        val modelPath = "/Users/duvalle/Documents/GitHub/dl4s/data/Songs/billboard/data/billboard-top100-model.bin"
         WordVectorSerializer.writeWord2VecModel(word2Vec, modelPath)
     }
 }
