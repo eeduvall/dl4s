@@ -27,7 +27,8 @@ object ElasticClient {
         )
 
         // Load the certificate
-        val certPath = "/Users/duvalle/Documents/GitHub/dl4s/http_ca.crt"
+        // val certPath = "/Users/duvalle/Documents/GitHub/dl4s/http_ca.crt"
+        val certPath = sys.env("DOCKER_BIND_MOUNT_LOCATION") + "/certs/es01/es01.crt"
         val certContent = Files.readAllBytes(Paths.get(certPath))
 
         // Create a KeyStore and add the certificate to it
