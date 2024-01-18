@@ -1,8 +1,5 @@
 package suggestors.models
 
-// import org.nd4j.linalg.api.ndarray.INDArray
-// import org.nd4j.linalg.dataset.DataSet
-// import org.nd4j.linalg.dataset.api.DataSetPreProcessor
 import org.nd4j.linalg.dataset.DataSet
 import org.nd4j.linalg.factory.Nd4j
 import org.nd4j.linalg.dataset.api.DataSetPreProcessor
@@ -107,11 +104,11 @@ class CharacterIterator(textFilePath: String, textFileEncoding: Charset, miniBat
     }
 
     def hasNext(): Boolean = {
-        return exampleStartOffsets.length > 0
+        exampleStartOffsets.length > 0
     }
 
     def next(): DataSet = {
-        return next(miniBatchSize)
+        next(miniBatchSize)
     }
 
     def next(num: Int): DataSet = {
@@ -145,7 +142,7 @@ class CharacterIterator(textFilePath: String, textFileEncoding: Charset, miniBat
             }
         }
 
-        return new DataSet(input, labels)
+        new DataSet(input, labels)
     }
 
     def reset(): Unit = {

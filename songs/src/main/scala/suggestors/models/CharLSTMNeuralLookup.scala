@@ -24,55 +24,49 @@ class CharLSTMNeuralLookup(lstmLayerSize: Int, miniBatchSize: Int, exampleLength
     var network: MultiLayerNetwork = _
     var characterIterator: CharacterIterator = _
 
-    override def build(inputIterator: InputIterator): Unit = {
-    val tempFile = Files.createTempFile("chars", ".txt")
-    val outputStream = new FileOutputStream(tempFile.toFile())
-    
-    
-    var input = inputIterator.next()
-    while (input != null) {
-        outputStream.write(input.bytes)
-        val surfaceForm = inputIterator.next()
+    def getCount(): Long = {
+        return -1L
     }
-    outputStream.flush()
-    outputStream.close()
 
-    val characterIterator = new CharacterIterator(tempFile.toAbsolutePath().toString(), Charset.defaultCharset(), miniBatchSize, exampleLength)
-    val network = NeuralNetworksUtils.trainLSTM(lstmLayerSize, tbpttLength, numEpochs, noOfHiddenLayers,
-        characterIterator, weightInit, updater, activation, new ScoreIterationListener(1000))
-    FileUtils.forceDeleteOnExit(tempFile.toFile())
-  }
+    override def build(inputIterator: InputIterator): Unit = {
+      val tempFile = Files.createTempFile("chars", ".txt")
+      val outputStream = new FileOutputStream(tempFile.toFile())
+      
+      
+      var input = inputIterator.next()
+      while (input != null) {
+          outputStream.write(input.bytes)
+          val surfaceForm = inputIterator.next()
+      }
+      outputStream.flush()
+      outputStream.close()
 
-    override def lookup(key: CharSequence, onlyMorePopular: Boolean, num: Int): List[LookupResult] = {
+      val characterIterator = new CharacterIterator(tempFile.toAbsolutePath().toString(), Charset.defaultCharset(), miniBatchSize, exampleLength)
+      val network = NeuralNetworksUtils.trainLSTM(lstmLayerSize, tbpttLength, numEpochs, noOfHiddenLayers,
+          characterIterator, weightInit, updater, activation, new ScoreIterationListener(1000))
+      FileUtils.forceDeleteOnExit(tempFile.toFile())
+    }
+
+    override def lookup(key: CharSequence, contexts: java.util.Set[BytesRef], onlyMorePopular: Boolean, num: Int): List[LookupResult] = {
         val results = new ArrayList[LookupResult]()
         val output = NeuralNetworksUtils.sampleFromNetwork(network,
             characterIterator, key.toString(), num, null)
-        val entrySet = output.entrySet()
-        val iterator = entrySet.iterator()
-        while (iterator.hasNext()) {
-            val entry = iterator.next()
-            results.add(new LookupResult(entry.getKey(), entry.getValue().toLong))
+        for ((key, value) <- output) {
+          results.add(new LookupResult(key, value.toLong))
         }
         return results
     }
 
 
-    //TODO Needs to be implemented
-    def ramBytesUsed(): Long = {
-        return 0
+    def store(x$0: DataOutput): Boolean = {
+      false
     }
 
-    def getCount(): Long = {
-        return 0
+    def load(x$0: DataInput): Boolean = {
+      false
     }
-    def load(input: Path): Unit = {
-        // val network = NeuralNetworksUtils.loadNetwork(input)
-        // val characterIterator = NeuralNetworksUtils.loadCharacterIterator(input)
+    
+    def ramBytesUsed(): Long = {
+        0
     }
-    def lookup(key: CharSequence, bytesRef: BytesRef, num: Int): List[LookupResult] = {
-        return new ArrayList[LookupResult]()
-    }
-    def load(x$0: DataInput): Boolean = ???
-    def lookup(x$0: CharSequence, x$1: java.util.Set[BytesRef], x$2: Boolean, x$3: Int): List[LookupResult] = ???
-    def store(x$0: DataOutput): Boolean = ???
 }

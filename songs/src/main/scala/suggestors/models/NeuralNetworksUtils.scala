@@ -1,9 +1,23 @@
 package suggestors.models
 
-import java.util.{Map, HashMap}
+import java.util.Base64
+import java.io.File
+// import java.io.{File, IOException, InputStream}
+import java.io.InputStream
+import java.util.LinkedList
+import scala.util.Random
+import scala.collection.mutable.{Map, ListBuffer}
+import scala.collection.JavaConverters._
+import scala.util.control.Breaks._
+import org.slf4j.LoggerFactory
+
+import org.apache.commons.io.IOUtils
+import org.deeplearning4j.models.embeddings.WeightLookupTable
+import org.deeplearning4j.models.embeddings.inmemory.InMemoryLookupTable
+import org.deeplearning4j.models.embeddings.loader.WordVectorSerializer
+import org.deeplearning4j.models.sequencevectors.sequence.SequenceElement
 import org.deeplearning4j.nn.conf.MultiLayerConfiguration
 import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
-import suggestors.models.CharacterIterator
 import org.deeplearning4j.nn.api.OptimizationAlgorithm
 import org.deeplearning4j.nn.conf.{BackpropType, NeuralNetConfiguration}
 import org.deeplearning4j.nn.conf.layers.{LSTM, RnnOutputLayer}
@@ -11,69 +25,106 @@ import org.deeplearning4j.nn.weights.WeightInit
 import org.deeplearning4j.optimize.api.TrainingListener
 import org.deeplearning4j.util.ModelSerializer
 import org.nd4j.linalg.activations.Activation
+import org.nd4j.linalg.factory.Nd4j
 import org.nd4j.linalg.lossfunctions.LossFunctions
-// import org.nd4j.linalg.api.ndarray.INDArray
-// import org.nd4j.linalg.factory.Nd4j
-// import org.nd4j.linalg.lookup.{InMemoryLookupTable, WeightLookupTable}
-// import org.nd4j.linalg.util.{IOUtils, WordVectorSerializer}
-import org.slf4j.LoggerFactory
-import java.io.File
-// import java.io.{File, IOException, InputStream}
-// import java.util.{LinkedList, List}
-// import scala.collection.JavaConverters._
-
+import org.nd4j.linalg.api.ndarray.INDArray
 import org.nd4j.linalg.activations.Activation
 import org.nd4j.linalg.learning.config.IUpdater
 
 object NeuralNetworksUtils {
+    val log = LoggerFactory.getLogger(getClass)
+
+    val rng = new Random()
+
+    var d: Double = 0.0
+
     def sampleFromNetwork(network: MultiLayerNetwork, characterIterator: CharacterIterator, initialization: String, numSamples: Int, eosChar: Character): Map[String, Double] = {
-        //TODO convert to Scala
-        return new HashMap[String, Double]()
-    // if (initialization == null) {
-    //   initialization = String.valueOf(characterIterator.convertIndexToCharacter(rng.nextInt(characterIterator.inputColumns())));
-    // }
+        var init = initialization
+        if (initialization == null) {
+            init = String.valueOf(characterIterator.convertIndexToCharacter(rng.nextInt(characterIterator.inputColumns())))
+        }
 
-    // StringBuilder[] sb = new StringBuilder[numSamples];
-    // for (int i = 0; i < numSamples; i++) {
-    //   sb[i] = new StringBuilder(initialization);
-    // }
+        val sb = Array.fill(numSamples)(new StringBuilder)
+        for (i <- 0 until numSamples) {
+            sb(i) = new StringBuilder(init)
+        }
 
-    // INDArray initializationInput = encodeInput(characterIterator, initialization, numSamples);
+        val initializationInput = encodeInput(characterIterator, init, numSamples)
 
-    // network.rnnClearPreviousState();
-    // INDArray output = network.rnnTimeStep(initializationInput);
-    // output = output.tensorAlongDimension((int)output.size(2) - 1, 1, 0);
+        network.rnnClearPreviousState()
+        var output = network.rnnTimeStep(initializationInput);
+        output = output.tensorAlongDimension(output.size(2).toInt - 1, 1, 0)
 
-    // int charactersToSample = 40;
-    // List<Double> probs = new ArrayList<>(numSamples);
-    // for (int i = 0; i < charactersToSample; i++) {
-    //   INDArray nextInput = Nd4j.zeros(numSamples, characterIterator.inputColumns());
-    //   for (int s = 0; s < numSamples; s++) {
-    //     double[] outputProbDistribution = new double[characterIterator.totalOutcomes()];
-    //     for (int j = 0; j < outputProbDistribution.length; j++) {
-    //       outputProbDistribution[j] = output.getDouble(s, j);
-    //     }
-    //     int sampledCharacterIdx = sampleFromDistribution(outputProbDistribution);
-    //     probs.add(d);
-    //     nextInput.putScalar(new int[] {s, sampledCharacterIdx}, 1.0f);
-    //     char c = characterIterator.convertIndexToCharacter(sampledCharacterIdx);
-    //     if (eosChar != null && eosChar == c) {
-    //       break;
-    //     }
-    //     sb[s].append(c);
-    //   }
 
-    //   output = network.rnnTimeStep(nextInput);
-    // }
+        val charactersToSample = 40
+        val probs = ListBuffer.fill(numSamples)(0.0)
+        for (i <- 0 until charactersToSample) {
+            val nextInput = Nd4j.zeros(numSamples, characterIterator.inputColumns())
+            breakable {
+                for (s <- 0 until numSamples) {
+                    val outputProbDistribution = Array.ofDim[Double](characterIterator.totalOutcomes())
+                    for (j <- outputProbDistribution.indices) {
+                        outputProbDistribution(j) = output.getDouble(Integer(s), Integer(j))
+                    }
+                    val sampledCharacterIdx = sampleFromDistribution(outputProbDistribution)
+                    probs += d
+                    nextInput.putScalar(Array(s, sampledCharacterIdx), 1.0f)
+                    val c = characterIterator.convertIndexToCharacter(sampledCharacterIdx)
+                    if (eosChar != null && eosChar == c) {
+                        break
+                    }
+                    sb(s).append(c)
+                }
+            }
 
-    // Map<String, Double> out = new HashMap<>();
-    // for (int i = 0; i < numSamples; i++) {
-    //   out.put(sb[i].toString(), probs.get(i));
-    // }
-    // return out;
+            output = network.rnnTimeStep(nextInput);
+        }
+
+        val out = Map[String, Double]()
+        for (i <- 0 until numSamples) {
+        out.put(sb(i).toString(), probs(i))
+        }
+        return out
   }
 
-    private val log = LoggerFactory.getLogger(getClass)
+
+    def encodeInput(characterIterator: CharacterIterator, initialization: String, numSamples: Int): INDArray = {
+        val initializationInput = Nd4j.zeros(numSamples, characterIterator.inputColumns(), initialization.length())
+        val init = initialization.toCharArray()
+        for (i <- 0 until init.length) {
+            val idx = characterIterator.convertCharacterToIndex(init(i))
+            for (j <- 0 until numSamples) {
+                initializationInput.putScalar(Array(j, idx, i), 1.0f)
+            }
+        }
+        initializationInput
+    }
+
+    def sampleFromDistribution(distribution: Array[Double]): Int = {
+        d = 0.0
+        var sum = 0.0
+        var result = -1
+        
+        breakable {
+            for (t <- 0 until 10) {
+                d = rng.nextDouble()
+                sum = 0.0
+                for (i <- 0 until distribution.length) {
+                    sum += distribution(i)
+                    if (d <= sum) {
+                        result = i
+                        break()
+                    }
+                }
+            }
+        }
+        
+        if (result == -1) {
+            throw new IllegalArgumentException("Distribution is invalid? d=" + d + ", sum=" + sum)
+        }
+
+        result
+    }
 
     def buildLSTM(noOfHiddenLayers: Int, lstmLayerSize: Int, tbpttLength: Int, ioSize: Int, weightInit: WeightInit, updater: IUpdater, activation: Activation): MultiLayerConfiguration = {
         var builder = new NeuralNetConfiguration.Builder()
@@ -124,7 +175,7 @@ object NeuralNetworksUtils {
                 val next = iter.next()
                 net.fit(next)
                 if ({ miniBatchNumber += 1; miniBatchNumber } % generateSamplesEveryNMinibatches == 0) {
-                    val samples = sampleFromNetwork(net, iter, "latest trends\n", 3, '\n').keySet().toArray(new Array[String](3))
+                    val samples = sampleFromNetwork(net, iter, "latest trends\n", 3, '\n').keys.toArray
                     for (j <- samples.indices) {
                         log.info(s"----- Sample $j -----")
                         log.info(samples(j))
@@ -137,39 +188,40 @@ object NeuralNetworksUtils {
         ModelSerializer.writeModel(net, locationToSave, true)
    }
 
-//TODO Convert to scala
-//     def generateInputs(input: String): List[String] = {
-//         val inputs = new LinkedList[String]()
-//         for (i <- 1 until input.length()) {
-//             inputs.add(input.substring(0, i))
-//         }
-//         inputs.add(input)
-//         inputs.asScala.toList
-//     }
+    def generateInputs(input: String): List[String] = {
+        val inputs = new LinkedList[String]()
+        for (i <- 1 until input.length()) {
+            inputs.add(input.substring(0, i))
+        }
+        inputs.add(input)
+        inputs.asScala.toList
+    }
 
-//     def readLookupTable[T <: SequenceElement](stream: InputStream): WeightLookupTable[T] = {
-//         val weightLookupTable = new InMemoryLookupTable[T]()
-//         var headerRead = false
-//         for (line <- IOUtils.readLines(stream, "UTF-8").asScala) {
-//             val tokens = line.split(" ")
-//             if (!headerRead) {
-//                 val numWords = tokens(0).toInt
-//                 val layerSize = tokens(1).toInt
-//                 val totalNumberOfDocs = tokens(2).toInt
-//                 log.debug(s"Reading header - words: $numWords, layerSize: $layerSize, totalNumberOfDocs: $totalNumberOfDocs")
-//                 headerRead = true
-//             }
+    def readLookupTable[T <: SequenceElement](stream: InputStream): WeightLookupTable[T] = {
+        val weightLookupTable = new InMemoryLookupTable[T]()
+        var headerRead = false
+        for (line <- IOUtils.readLines(stream, "UTF-8").asScala) {
+            val tokens = line.split(" ")
+            if (!headerRead) {
+                // reading header as "NUM_WORDS VECTOR_SIZE NUM_DOCS"
+                val numWords = tokens(0).toInt
+                val layerSize = tokens(1).toInt
+                val totalNumberOfDocs = tokens(2).toInt
+                log.debug(s"Reading header - words: $numWords, layerSize: $layerSize, totalNumberOfDocs: $totalNumberOfDocs")
+                headerRead = true
+            }
 
-//             val label = WordVectorSerializer.decodeB64(tokens(0))
-//             val vector = Nd4j.create(tokens.length - 1)
-//             if (label != null && vector != null) {
-//                 for (i <- 1 until tokens.length) {
-//                     vector.putScalar(i - 1, tokens(i).toDouble)
-//                 }
-//                 weightLookupTable.putVector(label, vector)
-//             }
-//         }
-//         stream.close()
-//         weightLookupTable
-//     }
+            // val label = WordVectorSerializer.decodeB64(tokens(0))
+            val label = new String(Base64.getDecoder.decode(tokens(0)), "UTF-8")
+            val vector = Nd4j.create(tokens.length - 1)
+            if (label != null && vector != null) {
+                for (i <- 1 until tokens.length) {
+                    vector.putScalar(i - 1, tokens(i).toDouble)
+                }
+                weightLookupTable.putVector(label, vector)
+            }
+        }
+        stream.close()
+        weightLookupTable
+    }
 }

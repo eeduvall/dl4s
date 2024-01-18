@@ -15,6 +15,8 @@ import java.nio.file.Paths
 import org.deeplearning4j.nn.weights.WeightInit
 // import org.deeplearning4j.optimize.api.Updater
 // import org.deeplearning4j.nn.conf.Activation
+import org.nd4j.linalg.activations.Activation
+import org.nd4j.linalg.learning.config.{IUpdater, RmsProp}
 import suggestors.models.CharLSTMNeuralLookup
 
 object BuildLookup {
@@ -31,14 +33,13 @@ object BuildLookup {
         val tbpttLength = 50
         val numEpochs = 10
         val noHiddenLayers = 1
-        val learningRate = 0.1
+        val learningRate = 0.1F
         val weightInit = WeightInit.XAVIER
-        //TODO fix these imports and call the method
-        // val updater = Updater.RMSPROP
-        // val activation = Activation.TANH
+        val updater = new RmsProp() //Updater.RMSPROP
+        val activation = Activation.TANH
 
-        // val lookup = new CharLSTMNeuralLookup(lstmLayerSize, miniBatchSize, exampleLength, tbpttLength, numEpochs, noHiddenLayers, learningRate, weightInit, updater, activation)
-        // lookup.build(dictionary)
+        val lookup = new CharLSTMNeuralLookup(lstmLayerSize, miniBatchSize, exampleLength, tbpttLength, numEpochs, noHiddenLayers, learningRate, weightInit, updater, activation)
+        lookup.build(dictionary)
     }
 
     def getIndexDirectory(indexName: String): String = {
