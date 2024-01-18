@@ -1,15 +1,18 @@
 package suggestors.models
 
 // import org.nd4j.linalg.api.ndarray.INDArray
-// import org.nd4j.linalg.factory.Nd4j
 // import org.nd4j.linalg.dataset.DataSet
 // import org.nd4j.linalg.dataset.api.DataSetPreProcessor
-
+import org.nd4j.linalg.dataset.DataSet
+import org.nd4j.linalg.factory.Nd4j
+import org.nd4j.linalg.dataset.api.DataSetPreProcessor
+import org.nd4j.linalg.dataset.api.iterator.DataSetIterator
 import java.nio.charset.Charset
 import java.io.File
 import java.nio.file.Files
 import java.util.Arrays
 import java.util.Collections
+import java.util.{List => JList}
 import scala.util.Random
 import scala.collection.mutable.ListBuffer
 import scala.collection.mutable
@@ -17,7 +20,7 @@ import java.io.IOException
 import org.slf4j.LoggerFactory
 import scala.jdk.CollectionConverters._
 
-class CharacterIterator(textFilePath: String, textFileEncoding: Charset, miniBatchSize: Int, exampleLength: Int, validCharacters: Array[Char], rng: Random) {
+class CharacterIterator(textFilePath: String, textFileEncoding: Charset, miniBatchSize: Int, exampleLength: Int, validCharacters: Array[Char], rng: Random) extends DataSetIterator {
 
     //Variables
     //Maps each character to an index ind the input/output
@@ -94,7 +97,90 @@ class CharacterIterator(textFilePath: String, textFileEncoding: Charset, miniBat
     def totalExamples(): Int = {
         (fileCharacters.length - 1) / miniBatchSize - 2
     }
+
+    def totalOutcomes(): Int = {
+        validCharacters.length
+    }
+
+    def batch(): Int = {
+        miniBatchSize
+    }
+
+    def hasNext(): Boolean = {
+        return exampleStartOffsets.length > 0
+    }
+
+    def next(): DataSet = {
+        return next(miniBatchSize)
+    }
+
+    def next(num: Int): DataSet = {
+        if (exampleStartOffsets.length == 0) {
+            throw new NoSuchElementException()
+        }
+
+        val currMinibatchSize = Math.min(num, exampleStartOffsets.length)
+        //Allocate space:
+        //Note the order here:
+        // dimension 0 = number of examples in minibatch
+        // dimension 1 = size of each vector (i.e., number of characters)
+        // dimension 2 = length of each time series/example
+        //Why 'f' order here? See http://deeplearning4j.org/usingrnns.html#data section "Alternative: Implementing a custom DataSetIterator"
+        val input = Nd4j.create(Array(currMinibatchSize, validCharacters.length, exampleLength), 'f')
+        val labels = Nd4j.create(Array(currMinibatchSize, validCharacters.length, exampleLength), 'f')
+
+        for (i <- 0 until currMinibatchSize) {
+            var startIdx = exampleStartOffsets.remove(0)
+            var endIdx = startIdx + exampleLength
+            var currCharIdx = charToIdxMap.get(fileCharacters(startIdx))
+                .getOrElse(throw new NoSuchElementException(s"No value found for character ${fileCharacters(startIdx)}"))    //Current input
+            var c = 0
+            for (j <- startIdx + 1 until endIdx) {
+                c += 1
+                val nextCharIdx = charToIdxMap.get(fileCharacters(j))
+                    .getOrElse(throw new NoSuchElementException(s"No value found for character ${fileCharacters(j)}"))        //Next character to predict
+                input.putScalar(Array(i, currCharIdx, c), 1.0)
+                labels.putScalar(Array(i, nextCharIdx, c), 1.0)
+                currCharIdx = nextCharIdx
+            }
+        }
+
+        return new DataSet(input, labels)
+    }
+
+    def reset(): Unit = {
+        exampleStartOffsets.clear()
+        initializeOffsets()
+    }
+
+    def resetSupported(): Boolean = {
+        true
+    }
+
+    def asyncSupported(): Boolean = {
+        true
+    }
     
+
+    def convertIndexToCharacter(idx: Int): Char = {
+        return validCharacters(idx)
+    }
+
+    def convertCharacterToIndex(c: Char): Int = {
+        charToIdxMap.get(c) match {
+            case Some(value) => value
+            case None => throw new NoSuchElementException(s"No value found for character $c")
+        }
+    }
+
+    def cursor(): Int = {
+        return totalExamples() - exampleStartOffsets.length
+    }
+
+    def getTextFilePath(): String = {
+        return textFilePath
+    }
+
     def initializeOffsets(): Unit = {
         //This defines the order in which parts of the file are fetched
         val nMinibatchesPerEpoch = (fileCharacters.length - 1) / exampleLength - 2   //-2: for end index, and for partial example
@@ -104,103 +190,21 @@ class CharacterIterator(textFilePath: String, textFileEncoding: Charset, miniBat
         exampleStartOffsets = rng.shuffle(exampleStartOffsets)
     }
 
-    //TODO Not Implemented
-    // char convertIndexToCharacter(int idx) {
-    //     return validCharacters[idx]
-    // }
+    override def getLabels(): JList[String] = {
+        throw new UnsupportedOperationException("Not implemented")
+    }
 
-    // int convertCharacterToIndex(char c) {
-    //     return charToIdxMap.get(c)
-    // }
+    override def setPreProcessor(preProcessor: DataSetPreProcessor): Unit = {
+        throw new UnsupportedOperationException("Not implemented")
+    }
 
-    // public boolean hasNext() {
-    //     return exampleStartOffsets.size() > 0
-    // }
+    override def getPreProcessor(): DataSetPreProcessor = {
+        throw new UnsupportedOperationException("Not implemented")
+    }
 
-    // public DataSet next() {
-    //     return next(miniBatchSize)
-    // }
-
-    // public DataSet next(int num) {
-    //     if (exampleStartOffsets.size() == 0) {
-    //     throw new NoSuchElementException()
-    //     }
-
-    //     int currMinibatchSize = Math.min(num, exampleStartOffsets.size())
-    //     //Allocate space:
-    //     //Note the order here:
-    //     // dimension 0 = number of examples in minibatch
-    //     // dimension 1 = size of each vector (i.e., number of characters)
-    //     // dimension 2 = length of each time series/example
-    //     //Why 'f' order here? See http://deeplearning4j.org/usingrnns.html#data section "Alternative: Implementing a custom DataSetIterator"
-    //     INDArray input = Nd4j.create(new int[] {currMinibatchSize, validCharacters.length, exampleLength}, 'f')
-    //     INDArray labels = Nd4j.create(new int[] {currMinibatchSize, validCharacters.length, exampleLength}, 'f')
-
-    //     for (int i = 0 i < currMinibatchSize i++) {
-    //     int startIdx = exampleStartOffsets.removeFirst()
-    //     int endIdx = startIdx + exampleLength
-    //     int currCharIdx = charToIdxMap.get(fileCharacters[startIdx])    //Current input
-    //     int c = 0
-    //     for (int j = startIdx + 1 j < endIdx j++, c++) {
-    //         int nextCharIdx = charToIdxMap.get(fileCharacters[j])        //Next character to predict
-    //         input.putScalar(new int[] {i, currCharIdx, c}, 1.0)
-    //         labels.putScalar(new int[] {i, nextCharIdx, c}, 1.0)
-    //         currCharIdx = nextCharIdx
-    //     }
-    //     }
-
-    //     return new DataSet(input, labels)
-    // }
-
-
-    // public int totalOutcomes() {
-    //     return validCharacters.length
-    // }
-
-    // public void reset() {
-    //     exampleStartOffsets.clear()
-    //     initializeOffsets()
-    // }
-
-    // public boolean resetSupported() {
-    //     return true
-    // }
-
-    // @Override
-    // public boolean asyncSupported() {
-    //     return true
-    // }
-
-    // public int batch() {
-    //     return miniBatchSize
-    // }
-
-    // public int cursor() {
-    //     return totalExamples() - exampleStartOffsets.size()
-    // }
-
-    // public void setPreProcessor(DataSetPreProcessor preProcessor) {
-    //     throw new UnsupportedOperationException("Not implemented")
-    // }
-
-    // @Override
-    // public DataSetPreProcessor getPreProcessor() {
-    //     throw new UnsupportedOperationException("Not implemented")
-    // }
-
-    // @Override
-    // public List<String> getLabels() {
-    //     throw new UnsupportedOperationException("Not implemented")
-    // }
-
-    // @Override
-    // public void remove() {
-    //     throw new UnsupportedOperationException()
-    // }
-
-    // public String getTextFilePath() {
-    //     return textFilePath
-    // }
+    override def remove(): Unit = {
+        throw new UnsupportedOperationException("Not implemented")
+    }
 }
 
 object CharacterIterator {

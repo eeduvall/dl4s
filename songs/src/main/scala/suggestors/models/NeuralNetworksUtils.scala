@@ -9,6 +9,7 @@ import org.deeplearning4j.nn.conf.{BackpropType, NeuralNetConfiguration}
 import org.deeplearning4j.nn.conf.layers.{LSTM, RnnOutputLayer}
 import org.deeplearning4j.nn.weights.WeightInit
 import org.deeplearning4j.optimize.api.TrainingListener
+import org.deeplearning4j.util.ModelSerializer
 import org.nd4j.linalg.activations.Activation
 import org.nd4j.linalg.lossfunctions.LossFunctions
 // import org.nd4j.linalg.api.ndarray.INDArray
@@ -16,6 +17,7 @@ import org.nd4j.linalg.lossfunctions.LossFunctions
 // import org.nd4j.linalg.lookup.{InMemoryLookupTable, WeightLookupTable}
 // import org.nd4j.linalg.util.{IOUtils, WordVectorSerializer}
 import org.slf4j.LoggerFactory
+import java.io.File
 // import java.io.{File, IOException, InputStream}
 // import java.util.{LinkedList, List}
 // import scala.collection.JavaConverters._
@@ -114,28 +116,28 @@ object NeuralNetworksUtils {
         net
     }
 
-    //TODO Convert to scala
     private def trainAndSave(numEpochs: Int, iter: CharacterIterator, name: String, net: MultiLayerNetwork): Unit = {
-//         var miniBatchNumber = 0
-//         val generateSamplesEveryNMinibatches = 300
-//         for (_ <- 0 until numEpochs) {
-//             while (iter.hasNext()) {
-//                 val next = iter.next()
-//                 net.fit(next)
-//                 if ({ miniBatchNumber += 1; miniBatchNumber } % generateSamplesEveryNMinibatches == 0) {
-//                     val samples = sampleFromNetwork(net, iter, "latest trends\n", 3, '\n').keySet().toArray(new Array[String](3))
-//                     for (j <- samples.indices) {
-//                         log.info(s"----- Sample $j -----")
-//                         log.info(samples(j))
-//                     }
-//                 }
-//             }
-//         }
-//         val locationToSave = new File(s"target/charLSTM-$name-${net.numParams()}-${iter.numExamples()}.zip")
-//         assert(locationToSave.createNewFile())
-//         ModelSerializer.writeModel(net, locationToSave, true)
+        var miniBatchNumber = 0
+        val generateSamplesEveryNMinibatches = 300
+        for (_ <- 0 until numEpochs) {
+            while (iter.hasNext()) {
+                val next = iter.next()
+                net.fit(next)
+                if ({ miniBatchNumber += 1; miniBatchNumber } % generateSamplesEveryNMinibatches == 0) {
+                    val samples = sampleFromNetwork(net, iter, "latest trends\n", 3, '\n').keySet().toArray(new Array[String](3))
+                    for (j <- samples.indices) {
+                        log.info(s"----- Sample $j -----")
+                        log.info(samples(j))
+                    }
+                }
+            }
+        }
+        val locationToSave = new File(s"target/charLSTM-$name-${net.numParams()}-${iter.totalExamples()}.zip")
+        assert(locationToSave.createNewFile())
+        ModelSerializer.writeModel(net, locationToSave, true)
    }
 
+//TODO Convert to scala
 //     def generateInputs(input: String): List[String] = {
 //         val inputs = new LinkedList[String]()
 //         for (i <- 1 until input.length()) {
