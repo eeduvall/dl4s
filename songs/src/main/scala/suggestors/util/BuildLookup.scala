@@ -12,21 +12,39 @@ import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.indices.GetIndexRequest
 import org.elasticsearch.xcontent.XContentType
 import java.nio.file.Paths
-
+import org.deeplearning4j.nn.weights.WeightInit
+// import org.deeplearning4j.optimize.api.Updater
+// import org.deeplearning4j.nn.conf.Activation
+import suggestors.models.CharLSTMNeuralLookup
 
 object BuildLookup {
     def buildLook(): Unit = {
-        val reader = DirectoryReader.open(FSDirectory.open(Paths.get("index")))
-        val dictionary = new DocumentDictionary(reader, "title", "rating")
-        // val lookup = new AnalyzingInfixLookup(Version.LATEST, new StandardAnalyzer())
-        val lookup = new FreeTextSuggester(new WhitespaceAnalyzer())
-        lookup.build(dictionary)
+        val reader = DirectoryReader.open(FSDirectory.open(Paths.get(sys.env("DOCKER_BIND_MOUNT_LOCATION") + "/esdata01/indices/" + getIndexDirectory("billboard"))))
+        val dictionary = new DocumentDictionary(reader, "title", null)
+        // // val lookup = new AnalyzingInfixLookup(Version.LATEST, new StandardAnalyzer())
+        // val lookup = new FreeTextSuggester(new WhitespaceAnalyzer())
+
+
+        val lstmLayerSize = 100
+        val miniBatchSize = 40
+        val exampleLength = 1000
+        val tbpttLength = 50
+        val numEpochs = 10
+        val noHiddenLayers = 1
+        val learningRate = 0.1
+        val weightInit = WeightInit.XAVIER
+        //TODO fix these imports and call the method
+        // val updater = Updater.RMSPROP
+        // val activation = Activation.TANH
+
+        // val lookup = new CharLSTMNeuralLookup(lstmLayerSize, miniBatchSize, exampleLength, tbpttLength, numEpochs, noHiddenLayers, learningRate, weightInit, updater, activation)
+        // lookup.build(dictionary)
     }
 
-    def getIndexDirectory(indexName: String, client: RestHighLevelClient): String = {
+    def getIndexDirectory(indexName: String): String = {
         val request = new GetIndexRequest(indexName)
-        val response = client.indices().get(request, RequestOptions.DEFAULT)
+        val response = ElasticClient.getElasticSearchClient().indices().get(request, RequestOptions.DEFAULT)
         val settings = response.getSettings.get(indexName)
-        settings.get("index.store.type")
+        settings.get("index.uuid")
     }
 }

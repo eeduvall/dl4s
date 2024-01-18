@@ -60,7 +60,16 @@ object LoadDataIntoElasticsearch {
                 "tags": { "type": "text" },
                 "year": { "type": "integer" },
                 "title": { "type": "keyword" },
-                "artist": { "type": "keyword" }
+                "artist": { "type": "keyword" },
+                "sentiment": {
+                    "type": "nested",
+                    "properties": {
+                        "neg": { "type": "float" },
+                        "neu": { "type": "float" },
+                        "pos": { "type": "float" },
+                        "compound": { "type": "float" }
+                    }
+                }
             }
         }"""
 
@@ -77,13 +86,14 @@ object LoadDataIntoElasticsearch {
                     val stringed = compact(render(element))
 
                     //Only keep the fields that are in the mapping
-                    val fields = (parse(mapping) \ "properties").asInstanceOf[JObject].obj
+                    val json = parse(mapping)
+                    val props = json.values.asInstanceOf[Map[String, Any]].get("properties").get.asInstanceOf[Map[String, Any]]
+                    val propsChildren = props.keys.toList
                     val elementObj = element.asInstanceOf[JObject]
                     val filteredElement = JObject(elementObj.obj.filter {
-                        case JField(name, _) => fields.exists(_._1 == name)
+                        case JField(name, _) => propsChildren.contains(name)
                     })
                     val elementString = compact(render(filteredElement))
-
                     insertIntoIndex(indexName, elementString, None)
                 }
             }
