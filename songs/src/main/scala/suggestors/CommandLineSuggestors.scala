@@ -3,16 +3,18 @@ import scala.io.StdIn
 object CommandlineSuggestors {
     def main(args: Array[String]): Unit = {
         // println(BuildLookup.getIndexDirectory("billboard"))
-        BuildLookup.buildLook()
+        val lookupUtil = new BuildLookup()
+        lookupUtil.buildLook()
 
-        // while (true) {
-            // print("Enter a word or phrase to see the search suggestors: ")
-            // val input = StdIn.readLine()
+        while (true) {
+            print("Enter a word or phrase to see the search suggestors: ")
+            val input = StdIn.readLine()
             
             // val suggestors = GeneratorSuggestors.generateSuggestors(input)
-            // print("Suggestions are: ")
-            // synonyms.foreach(s => println(s))
-            // println("\n")
-        // }
+            val suggestors = lookupUtil.getSuggestors(input)
+            print("Suggestions are: ")
+            suggestors.foreach(s => println(s))
+            println("\n")
+        }
     }
 }

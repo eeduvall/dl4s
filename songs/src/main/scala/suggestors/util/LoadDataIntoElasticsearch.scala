@@ -153,7 +153,8 @@ object LoadDataIntoElasticsearch {
     }
 
     def createIndex(mapping: String, indexName: String): Unit = {
-        val client = ElasticClient.getElasticSearchClient()
+        // val client = ElasticClient.getElasticSearchClient()
+        val client = ElasticClient.getElasticSearch717Client()
 
         try {
             // Check if the index exists
@@ -176,7 +177,8 @@ object LoadDataIntoElasticsearch {
     }
 
     def insertIntoIndex(indexName: String, jsonObject: String, docId: Option[String]): Unit = {
-        val client = ElasticClient.getElasticSearchClient()
+        // val client = ElasticClient.getElasticSearchClient()
+        val client = ElasticClient.getElasticSearch717Client()
 
         try {
             // Check if the index exists

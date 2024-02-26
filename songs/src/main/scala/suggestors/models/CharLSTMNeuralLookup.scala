@@ -21,8 +21,8 @@ class CharLSTMNeuralLookup(lstmLayerSize: Int, miniBatchSize: Int, exampleLength
                      numEpochs: Int, noOfHiddenLayers: Int, learningRate: Float, weightInit: WeightInit,
                      updater: IUpdater, activation: Activation) extends Lookup {
 
-    var network: MultiLayerNetwork = _
-    var characterIterator: CharacterIterator = _
+    var network: Option[MultiLayerNetwork] = None
+    var characterIterator: Option[CharacterIterator] = None
 
     def getCount(): Long = {
         return -1L
@@ -36,21 +36,26 @@ class CharLSTMNeuralLookup(lstmLayerSize: Int, miniBatchSize: Int, exampleLength
       var input = inputIterator.next()
       while (input != null) {
           outputStream.write(input.bytes)
-          val surfaceForm = inputIterator.next()
+          input = inputIterator.next()
       }
       outputStream.flush()
       outputStream.close()
-
-      val characterIterator = new CharacterIterator(tempFile.toAbsolutePath().toString(), Charset.defaultCharset(), miniBatchSize, exampleLength)
-      val network = NeuralNetworksUtils.trainLSTM(lstmLayerSize, tbpttLength, numEpochs, noOfHiddenLayers,
-          characterIterator, weightInit, updater, activation, new ScoreIterationListener(1000))
+      characterIterator = Some(new CharacterIterator(tempFile.toAbsolutePath().toString(), Charset.defaultCharset(), miniBatchSize, exampleLength))
+      if (characterIterator == null) {
+        throw new IllegalArgumentException("Input iterator is null")
+      }
+      network = Some(NeuralNetworksUtils.trainLSTM(lstmLayerSize, tbpttLength, numEpochs, noOfHiddenLayers,
+          characterIterator.get, weightInit, updater, activation, new ScoreIterationListener(1000)))
       FileUtils.forceDeleteOnExit(tempFile.toFile())
     }
 
     override def lookup(key: CharSequence, contexts: java.util.Set[BytesRef], onlyMorePopular: Boolean, num: Int): List[LookupResult] = {
         val results = new ArrayList[LookupResult]()
-        val output = NeuralNetworksUtils.sampleFromNetwork(network,
-            characterIterator, key.toString(), num, null)
+        if (characterIterator == null) {
+        throw new IllegalArgumentException("Input iterator is null")
+      }
+        val output = NeuralNetworksUtils.sampleFromNetwork(network.get,
+            characterIterator.get, key.toString(), num, null)
         for ((key, value) <- output) {
           results.add(new LookupResult(key, value.toLong))
         }

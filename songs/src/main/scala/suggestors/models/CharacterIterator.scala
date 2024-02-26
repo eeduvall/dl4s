@@ -64,7 +64,6 @@ class CharacterIterator(textFilePath: String, textFileEncoding: Charset, miniBat
             currIdx += 1
         }
     }
-
     if (currIdx == characters.length) {
       fileCharacters = characters
     } else {
