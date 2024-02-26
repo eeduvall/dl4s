@@ -2,3 +2,6 @@
 elastic_credentials.txt
 http_ca.crt
 /data/*
+/target/*
+.env
+/docker/target
