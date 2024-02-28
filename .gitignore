@@ -5,3 +5,4 @@ http_ca.crt
 /target/*
 .env
 /docker/target
+*.bash

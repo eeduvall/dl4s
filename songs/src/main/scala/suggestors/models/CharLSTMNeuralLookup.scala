@@ -7,7 +7,10 @@ import org.apache.commons.io.FileUtils
 import java.util.{ArrayList, List, Map}
 import org.deeplearning4j.nn.multilayer.MultiLayerNetwork
 import org.deeplearning4j.nn.weights.WeightInit
-import org.deeplearning4j.optimize.listeners.ScoreIterationListener;
+import org.deeplearning4j.optimize.listeners.ScoreIterationListener
+import org.deeplearning4j.ui.api.UIServer
+import org.deeplearning4j.ui.model.storage.InMemoryStatsStorage
+import org.deeplearning4j.ui.model.stats.StatsListener
 import org.apache.lucene.util.BytesRef
 import org.apache.lucene.store.DataInput
 import org.apache.lucene.store.DataOutput
@@ -44,8 +47,12 @@ class CharLSTMNeuralLookup(lstmLayerSize: Int, miniBatchSize: Int, exampleLength
       if (characterIterator == null) {
         throw new IllegalArgumentException("Input iterator is null")
       }
+
+      var uiServer = UIServer.getInstance()
+      var statsStorage = new InMemoryStatsStorage()
+      uiServer.attach(statsStorage)
       network = Some(NeuralNetworksUtils.trainLSTM(lstmLayerSize, tbpttLength, numEpochs, noOfHiddenLayers,
-          characterIterator.get, weightInit, updater, activation, new ScoreIterationListener(1000)))
+          characterIterator.get, weightInit, updater, activation, new ScoreIterationListener(1000), new StatsListener(statsStorage)))
       FileUtils.forceDeleteOnExit(tempFile.toFile())
     }
 

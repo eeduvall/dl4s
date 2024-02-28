@@ -26,13 +26,13 @@ import suggestors.models.CharLSTMNeuralLookup
 import scala.collection.JavaConverters._
 
 class BuildLookup {
-    val lstmLayerSize = 100
+    val lstmLayerSize = 5 //100
     val miniBatchSize = 40
     val exampleLength = 1000
     val tbpttLength = 50
     val numEpochs = 10
     val noHiddenLayers = 1
-    val learningRate = 0.1F
+    val learningRate = 0.4F //0.1F
     val weightInit = WeightInit.XAVIER
     val updater = new RmsProp() //Updater.RMSPROP
     val activation = Activation.TANH
@@ -43,10 +43,7 @@ class BuildLookup {
         // val reader = DirectoryReader.open(FSDirectory.open(Paths.get(sys.env("DOCKER_BIND_MOUNT_LOCATION_717") + getIndexDirectory("billboard") + "/0/index/")))
         val reader = DirectoryReader.open(FSDirectory.open(Paths.get(sys.env("LUCENE_LOCATION") + "/billboard")))
         val dictionary = new DocumentDictionary(reader, "title", null)
-        // // val lookup = new AnalyzingInfixLookup(Version.LATEST, new StandardAnalyzer())
-        // val lookup = new FreeTextSuggester(new WhitespaceAnalyzer())
-
-        lookup.build(dictionary)
+        lookup.build(dictionary.getEntryIterator())
     }
 
     def getIndexDirectory(indexName: String): String = {

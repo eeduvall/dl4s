@@ -9,10 +9,35 @@ import org.json4s._
 import org.json4s.jackson.JsonMethods._
 // import org.apache.lucene.document.NumericField
 import org.apache.lucene.document.TextField
+import org.apache.lucene.document.IntPoint
+import org.apache.lucene.document.DoublePoint
+import org.apache.lucene.document.BinaryPoint
 
 object LoadDataIntoLucene {
     def main(args: Array[String]): Unit = {
         readFromBillboard()
+    }
+
+    def extractValue(jvalue: JValue): Any = jvalue match {
+        case JString(s) => s
+        case JInt(num) => num
+        case JDouble(num) => num
+        case JBool(b) => b
+        case JArray(arr) => arr.map(extractValue)
+        case JObject(obj) => obj.map { case (k, v) => (k, extractValue(v)) }
+        case JNull => null
+        case JNothing => null
+    }
+
+    def getField(name: String, jvalue: JValue): Field = jvalue match {
+        case JString(s) => new TextField(name, s, Field.Store.YES)
+        case JInt(num) => new IntPoint(name, num.toInt)
+        case JDouble(num) => new DoublePoint(name, num.toDouble)
+        case JBool(b) => new TextField(name, b.toString(), Field.Store.YES)
+        case JArray(arr) => new TextField(name, arr.map(extractValue).mkString(", "), Field.Store.YES) //TODO this could be improved
+        case JObject(obj) => new TextField(name, obj.map { case (k, v) => (k, extractValue(v)) }.map { case (k, v) => s"$k: $v" }.mkString(", "), Field.Store.YES)
+        case JNull => null
+        case JNothing => null
     }
 
     def readFromBillboard(): Unit = {
@@ -74,14 +99,8 @@ object LoadDataIntoLucene {
                     val doc = new Document()
                     val fields = parse(elementString).asInstanceOf[JObject].obj
                     fields.foreach { case (name, value) =>
-                        // if (value.isInstanceOf[Double] || value.isInstanceOf[Float]) {
-                        //     System.out.println("Adding numeric field")
-                        //     doc.add(new NumericField(name, value.toString, None))
-                        // } else {
-                        //     System.out.println("Adding string field")
-                        //     doc.add(new TextField(name, value.toString, Field.Store.YES))
-                        // }
-                        doc.add(new TextField(name, value.toString, Field.Store.YES))
+                        doc.add(getField(name, value))
+                        
                     }
                     indexWriter.addDocument(doc)
                 }
