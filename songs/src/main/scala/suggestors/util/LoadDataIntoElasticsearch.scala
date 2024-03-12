@@ -34,6 +34,7 @@ import org.json4s.JsonDSL.string2jvalue
 import org.json4s.jackson.JsonMethods._
 import collection.JavaConverters.mapAsJavaMapConverter
 import java.util.UUID
+import suggestors.elasticsearch.ElasticClient
 
 // @main def main: Unit =
 // //   readFromDB()

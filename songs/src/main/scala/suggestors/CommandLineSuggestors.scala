@@ -1,4 +1,5 @@
 import scala.io.StdIn
+import suggestors.util.BuildLookup
 
 object CommandlineSuggestors {
     def main(args: Array[String]): Unit = {

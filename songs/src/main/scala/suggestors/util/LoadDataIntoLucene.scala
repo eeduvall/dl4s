@@ -15,7 +15,9 @@ import org.apache.lucene.document.BinaryPoint
 
 object LoadDataIntoLucene {
     def main(args: Array[String]): Unit = {
-        readFromBillboard()
+        // readFromBillboard()
+        // readFromH5ExtractedData()
+        readWikiExtractedData()
     }
 
     def extractValue(jvalue: JValue): Any = jvalue match {
@@ -65,7 +67,7 @@ object LoadDataIntoLucene {
 
         
         
-        val indexPath = sys.env("LUCENE_LOCATION") + "/billboard"
+        val indexPath = sys.env("LUCENE_LOCATION") + "/" + indexName
         val analyzer = new StandardAnalyzer()
         val indexConfig = new IndexWriterConfig(analyzer)
         val indexDir = FSDirectory.open(Paths.get(indexPath))
@@ -105,6 +107,102 @@ object LoadDataIntoLucene {
                     indexWriter.addDocument(doc)
                 }
             }
+        }
+
+        indexWriter.close()
+    }
+
+
+
+    def readFromH5ExtractedData(): Unit = {
+        val filePath = "/Users/duvalle/Documents/GitHub/dl4s/songs/src/main/python/h5/collected_data.json"
+        val jsonContent = new String(Files.readAllBytes(Paths.get(filePath)), StandardCharsets.UTF_8)
+        val jsonArray = parse(jsonContent).asInstanceOf[JArray]
+
+        val indexName = "millionsong"
+        val mapping = """{
+            "properties": {
+                "artist": { "type": "keyword" },
+                "song": { "type": "keyword" },
+                "artist_id": { "type": "text" },
+                "idx_similar_artists": { "type": "integer" },
+                "release": { "type": "text" },
+                "song_id": { "type": "text" },
+                "song_hotttnesss": { "type": "float" },
+                "artist_familiarity": { "type": "float" },
+                "artist_hotttnesss": { "type": "float" },
+                "genre": { "type": "text" }
+            }
+        }"""
+
+        val indexPath = sys.env("LUCENE_LOCATION") + "/" + indexName
+        val analyzer = new StandardAnalyzer()
+        val indexConfig = new IndexWriterConfig(analyzer)
+        val indexDir = FSDirectory.open(Paths.get(indexPath))
+        val indexWriter = new IndexWriter(indexDir, indexConfig)
+
+        jsonArray.arr.foreach { element =>
+            val stringed = compact(render(element))
+
+            //Only keep the fields that are in the mapping
+            val json = parse(mapping)
+            val props = json.values.asInstanceOf[Map[String, Any]].get("properties").get.asInstanceOf[Map[String, Any]]
+            val propsChildren = props.keys.toList
+            val elementObj = element.asInstanceOf[JObject]
+            val filteredElement = JObject(elementObj.obj.filter {
+                case JField(name, _) => propsChildren.contains(name)
+            })
+            val elementString = compact(render(filteredElement))
+            val doc = new Document()
+            val fields = parse(elementString).asInstanceOf[JObject].obj
+            fields.foreach { case (name, value) =>
+                doc.add(getField(name, value))
+            }
+            indexWriter.addDocument(doc)
+        }
+
+        indexWriter.close()
+    }
+
+    def readWikiExtractedData(): Unit = {
+        val filePath = "/Users/duvalle/Documents/GitHub/dl4s/songs/src/main/python/wiki-scraper/songs.json"
+        val jsonContent = new String(Files.readAllBytes(Paths.get(filePath)), StandardCharsets.UTF_8)
+        val jsonArray = parse(jsonContent).asInstanceOf[JArray]
+
+        val indexName = "wikisongs"
+        val mapping = """{
+            "properties": {
+                "artist": { "type": "keyword" },
+                "album": { "type": "keyword" },
+                "song": { "type": "keyword" },
+                "year": { "type": "integer" }
+            }
+        }"""
+
+        val indexPath = sys.env("LUCENE_LOCATION") + "/" + indexName
+        val analyzer = new StandardAnalyzer()
+        val indexConfig = new IndexWriterConfig(analyzer)
+        val indexDir = FSDirectory.open(Paths.get(indexPath))
+        val indexWriter = new IndexWriter(indexDir, indexConfig)
+
+        jsonArray.arr.foreach { element =>
+            val stringed = compact(render(element))
+
+            //Only keep the fields that are in the mapping
+            val json = parse(mapping)
+            val props = json.values.asInstanceOf[Map[String, Any]].get("properties").get.asInstanceOf[Map[String, Any]]
+            val propsChildren = props.keys.toList
+            val elementObj = element.asInstanceOf[JObject]
+            val filteredElement = JObject(elementObj.obj.filter {
+                case JField(name, _) => propsChildren.contains(name)
+            })
+            val elementString = compact(render(filteredElement))
+            val doc = new Document()
+            val fields = parse(elementString).asInstanceOf[JObject].obj
+            fields.foreach { case (name, value) =>
+                doc.add(getField(name, value))
+            }
+            indexWriter.addDocument(doc)
         }
 
         indexWriter.close()

@@ -1,3 +1,5 @@
+package suggestors.elasticsearch
+
 import java.nio.file.{Files, Paths}
 import java.security.KeyStore
 import java.security.cert.CertificateFactory

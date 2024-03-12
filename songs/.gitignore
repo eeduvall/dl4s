@@ -33,3 +33,6 @@ metals.sbt
 
 # Notes
 *.txt
+
+# Data
+*.json

@@ -1,3 +1,5 @@
+package suggestors.util
+
 import org.apache.lucene.analysis.standard.StandardAnalyzer
 import org.apache.lucene.analysis.core.WhitespaceAnalyzer
 import org.apache.lucene.index.DirectoryReader
@@ -24,14 +26,15 @@ import org.nd4j.linalg.activations.Activation
 import org.nd4j.linalg.learning.config.{IUpdater, RmsProp}
 import suggestors.models.CharLSTMNeuralLookup
 import scala.collection.JavaConverters._
+import suggestors.elasticsearch.ElasticClient
 
 class BuildLookup {
-    val lstmLayerSize = 5 //100
-    val miniBatchSize = 40
-    val exampleLength = 1000
+    val lstmLayerSize = 35 //100
+    val miniBatchSize = 25 //40
+    val exampleLength = 100 //1000
     val tbpttLength = 50
-    val numEpochs = 10
-    val noHiddenLayers = 1
+    val numEpochs = 15 //10
+    val noHiddenLayers = 1 //1
     val learningRate = 0.4F //0.1F
     val weightInit = WeightInit.XAVIER
     val updater = new RmsProp() //Updater.RMSPROP
@@ -41,8 +44,9 @@ class BuildLookup {
     
     def buildLook(): Unit = {
         // val reader = DirectoryReader.open(FSDirectory.open(Paths.get(sys.env("DOCKER_BIND_MOUNT_LOCATION_717") + getIndexDirectory("billboard") + "/0/index/")))
-        val reader = DirectoryReader.open(FSDirectory.open(Paths.get(sys.env("LUCENE_LOCATION") + "/billboard")))
-        val dictionary = new DocumentDictionary(reader, "title", null)
+        // val reader = DirectoryReader.open(FSDirectory.open(Paths.get(sys.env("LUCENE_LOCATION") + "/billboard")))
+        val reader = DirectoryReader.open(FSDirectory.open(Paths.get(sys.env("LUCENE_LOCATION") + "/wikisongs")))
+        val dictionary = new DocumentDictionary(reader, "song", null)//lyrics
         lookup.build(dictionary.getEntryIterator())
     }
 
