@@ -129,6 +129,7 @@ object NeuralNetworksUtils {
     def buildLSTM(noOfHiddenLayers: Int, lstmLayerSize: Int, tbpttLength: Int, ioSize: Int, weightInit: WeightInit, updater: IUpdater, activation: Activation): MultiLayerConfiguration = {
         var builder = new NeuralNetConfiguration.Builder()
             .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
+            // .optimizationAlgo(OptimizationAlgorithm.ADAM) //Recommended by Copilot but doesn't exist - https://javadoc.io/static/org.deeplearning4j/deeplearning4j-nn/1.0.0-M2.1/org/deeplearning4j/nn/api/OptimizationAlgorithm.html
             .seed(12345)
             .l2(0.001)
             .weightInit(weightInit)
@@ -138,6 +139,7 @@ object NeuralNetworksUtils {
                 .activation(activation).build())
 
         for (i <- 1 until noOfHiddenLayers) {
+            println("adding hidden layer " + i)
             builder = builder.layer(i, new LSTM.Builder().nIn(lstmLayerSize).nOut(lstmLayerSize)
                 .activation(activation).build())
         }
@@ -175,13 +177,14 @@ object NeuralNetworksUtils {
                 val next = iter.next()
                 net.fit(next)
                 if ({ miniBatchNumber += 1; miniBatchNumber } % generateSamplesEveryNMinibatches == 0) {
-                    val samples = sampleFromNetwork(net, iter, "latest trends\n", 3, '\n').keys.toArray
+                    val samples = sampleFromNetwork(net, iter, "take me to the \n", 3, '\n').keys.toArray
                     for (j <- samples.indices) {
                         log.info(s"----- Sample $j -----")
                         log.info(samples(j))
                     }
                 }
             }
+            iter.reset()
         }
         val locationToSave = new File(s"target/charLSTM-$name-${net.numParams()}-${iter.totalExamples()}.zip")
         assert(locationToSave.createNewFile())

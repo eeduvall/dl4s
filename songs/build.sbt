@@ -21,5 +21,8 @@ lazy val root = project
     libraryDependencies += "org.nd4j" % "nd4j-native-platform" % "1.0.0-M2.1",//CPU
     // libraryDependencies += "org.nd4j" % "nd4j-cuda-10.2-platform" % "1.0.0-beta7",//GPU
     libraryDependencies += "org.apache.lucene" % "lucene-core" % "8.11.0",
-    libraryDependencies += "org.apache.lucene" % "lucene-suggest" % "8.11.0"
+    libraryDependencies += "org.apache.lucene" % "lucene-suggest" % "8.11.0",
+    libraryDependencies += "de.siegmar" % "fastcsv" % "3.1.0",
+    libraryDependencies += "org.apache.tika" % "tika-core" % "1.27",
+    libraryDependencies += "org.apache.tika" % "tika-langdetect" % "1.27"
   )

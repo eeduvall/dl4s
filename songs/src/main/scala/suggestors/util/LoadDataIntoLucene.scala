@@ -12,12 +12,16 @@ import org.apache.lucene.document.TextField
 import org.apache.lucene.document.IntPoint
 import org.apache.lucene.document.DoublePoint
 import org.apache.lucene.document.BinaryPoint
+import java.io.{BufferedReader, InputStreamReader, FileInputStream}
+import scala.io.StdIn
+import de.siegmar.fastcsv.reader.CsvReader
 
 object LoadDataIntoLucene {
     def main(args: Array[String]): Unit = {
         // readFromBillboard()
         // readFromH5ExtractedData()
-        readWikiExtractedData()
+        // readWikiExtractedData()
+        readGeniusSongCsv()
     }
 
     def extractValue(jvalue: JValue): Any = jvalue match {
@@ -203,6 +207,36 @@ object LoadDataIntoLucene {
                 doc.add(getField(name, value))
             }
             indexWriter.addDocument(doc)
+        }
+
+        indexWriter.close()
+    }
+
+    def readGeniusSongCsv(): Unit = {
+        val filePath = "/Users/duvalle/Documents/GitHub/dl4s/data/Songs/Kaggle-GeniusSongLyrics/song_lyrics.csv"
+        val file = Paths.get(filePath)
+
+        val indexName = "geniusSongs"
+        val indexPath = sys.env("LUCENE_LOCATION") + "/" + indexName
+        val analyzer = new StandardAnalyzer()
+        val indexConfig = new IndexWriterConfig(analyzer)
+        val indexDir = FSDirectory.open(Paths.get(indexPath))
+        val indexWriter = new IndexWriter(indexDir, indexConfig)
+
+        CsvReader.builder().ofCsvRecord(file).iterator().forEachRemaining { record =>
+            
+            if (record.getField(record.getFieldCount() - 1) == "en"){
+                val doc = new Document()
+                doc.add(new TextField("title", record.getField(0), Field.Store.YES))
+                doc.add(new TextField("tag", record.getField(1), Field.Store.YES))
+                doc.add(new TextField("artist", record.getField(2), Field.Store.YES))
+                doc.add(new IntPoint("year", record.getField(3).toInt))
+                doc.add(new TextField("features", record.getField(5), Field.Store.YES))
+                // doc.add(new TextField("lyrics", record.getField(6), Field.Store.YES))
+                doc.add(new IntPoint("id", record.getField(7).toInt))
+                doc.add(new TextField("language", record.getField(10), Field.Store.YES))
+                indexWriter.addDocument(doc)
+            }
         }
 
         indexWriter.close()

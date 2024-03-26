@@ -20,7 +20,7 @@ import scala.jdk.CollectionConverters._
 class CharacterIterator(textFilePath: String, textFileEncoding: Charset, miniBatchSize: Int, exampleLength: Int, validCharacters: Array[Char], rng: Random) extends DataSetIterator {
 
     //Variables
-    //Maps each character to an index ind the input/output
+    //Maps each character to an index in the input/output
     val charToIdxMap = mutable.Map[Char, Int]()
     //All characters of the input file (after filtering to only those that are valid
     var fileCharacters = Array.empty[Char]
@@ -37,7 +37,7 @@ class CharacterIterator(textFilePath: String, textFileEncoding: Charset, miniBat
       throw new IllegalArgumentException("Invalid miniBatchSize (must be >0)")
     }
 
-    //Store valid characters is a map for later use in vectorization
+    //Store valid characters in a map for later use in vectorization
     for (i <- 0 until validCharacters.length) {
        charToIdxMap += (validCharacters(i) -> i)
     }
@@ -52,6 +52,9 @@ class CharacterIterator(textFilePath: String, textFileEncoding: Charset, miniBat
     }
     val characters = Array.ofDim[Char](maxSize)
     var currIdx = 0
+    //TODO this throws an OOM when the content is too large
+    //Fix by writing to a temp file and reading in chunks
+    //See: File Characters as important variable set at end
     for (line <- lines.asScala) {
         for (charInLine <- line.toCharArray()) {
             if (charToIdxMap.contains(charInLine)) {
@@ -128,13 +131,16 @@ class CharacterIterator(textFilePath: String, textFileEncoding: Charset, miniBat
         for (i <- 0 until currMinibatchSize) {
             var startIdx = exampleStartOffsets.remove(0)
             var endIdx = startIdx + exampleLength
+            println(s"ASCII Decimal Encoding of '${fileCharacters(startIdx)}': ${fileCharacters(startIdx).toInt}")
             var currCharIdx = charToIdxMap.get(fileCharacters(startIdx))
-                .getOrElse(throw new NoSuchElementException(s"No value found for character ${fileCharacters(startIdx)}"))    //Current input
+                .getOrElse(throw new NoSuchElementException(s"No value found for character '${fileCharacters(startIdx)}'"))    //Current input
             var c = 0
             for (j <- startIdx + 1 until endIdx) {
                 c += 1
+                // println("fileCharacters(j): " + fileCharacters(j) + " charToIdxMap: " + charToIdxMap.get(fileCharacters(j)))
+                println(s"ASCII Decimal Encoding of '${fileCharacters(j)}': ${fileCharacters(j).toInt}")
                 val nextCharIdx = charToIdxMap.get(fileCharacters(j))
-                    .getOrElse(throw new NoSuchElementException(s"No value found for character ${fileCharacters(j)}"))        //Next character to predict
+                    .getOrElse(throw new NoSuchElementException(s"No value found for character '${fileCharacters(j)}'"))        //Next character to predict
                 input.putScalar(Array(i, currCharIdx, c), 1.0)
                 labels.putScalar(Array(i, nextCharIdx, c), 1.0)
                 currCharIdx = nextCharIdx
@@ -163,6 +169,7 @@ class CharacterIterator(textFilePath: String, textFileEncoding: Charset, miniBat
     }
 
     def convertCharacterToIndex(c: Char): Int = {
+        println(s"ASCII Decimal Encoding of '${c}': ${c.toInt}")
         charToIdxMap.get(c) match {
             case Some(value) => value
             case None => throw new NoSuchElementException(s"No value found for character $c")
@@ -205,6 +212,7 @@ class CharacterIterator(textFilePath: String, textFileEncoding: Charset, miniBat
 
 object CharacterIterator {
     def getMinimalCharacterSet: Array[Char] = {
-        ('a' to 'z').toArray ++ ('A' to 'Z').toArray ++ ('0' to '9').toArray ++ Array('!', '&', '(', ')', '?', '-', '\'', '"', ',', '.', ':', ';', ' ', '\n', '\t').toArray
+        // ('a' to 'z').toArray ++ ('A' to 'Z').toArray ++ ('0' to '9').toArray ++ Array('!', '&', '(', ')', '?', '-', '\'', '"', ',', '.', ':', ';', ' ', '\n', '\t').toArray
+        ('a' to 'z').toArray ++ ('0' to '9').toArray ++ Array(' ').toArray
     }
 }
